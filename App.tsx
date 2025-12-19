@@ -38,7 +38,6 @@ const App: React.FC = () => {
   }, []);
 
   const checkKeyStatus = async () => {
-    // 활성화 여부를 먼저 확인
     const activated = isVaultActivated();
     if (!activated) {
       setIsKeyActive(false);
@@ -48,7 +47,11 @@ const App: React.FC = () => {
     const hasManual = hasStoredApiKey();
     let hasProject = false;
     if (window.aistudio) {
-      hasProject = await window.aistudio.hasSelectedApiKey();
+      try {
+        hasProject = await window.aistudio.hasSelectedApiKey();
+      } catch (e) {
+        console.warn("AI Studio API check failed", e);
+      }
     }
     setIsKeyActive(hasManual || hasProject || !!process.env.API_KEY);
   };
@@ -87,16 +90,28 @@ const App: React.FC = () => {
             if (newScenes[index]) newScenes[index] = { ...newScenes[index], imageUrl, isLoading: false };
             return newScenes;
           });
-        } catch (error) {
+        } catch (error: any) {
+          console.error(`Scene ${index} failed:`, error);
+          const isEntityError = error.message?.includes("Requested entity was not found");
+          if (isEntityError) {
+             setVaultActivated(false);
+             setIsKeyActive(false);
+             setIsApiKeyModalOpen(true);
+          }
           setScenes(prev => {
             const newScenes = [...prev];
-            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: 'Render Error' };
+            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: isEntityError ? 'Project Key Required' : 'Render Error' };
             return newScenes;
           });
         }
       });
     } catch (error: any) {
       console.error(error);
+      const isEntityError = error.message?.includes("Requested entity was not found");
+      if (isEntityError) {
+        setVaultActivated(false);
+        setIsKeyActive(false);
+      }
       setIsApiKeyModalOpen(true);
     } finally {
       setIsGenerating(false);
@@ -116,13 +131,15 @@ const App: React.FC = () => {
         const videoUrl = await generateVeoVideo(veoModel, topic, veoAspectRatio, veoResolution, referenceImage);
         setGeneratedVideoUrl(videoUrl);
     } catch (error: any) {
+        console.error("Video Generation Error:", error);
         setVeoError(error.message || "Video failed.");
-        // Specific requirement: reset key state if "Requested entity was not found" occurs
+        
+        // Handle mandatory reset if project key is missing or invalid for Veo
         if (error.message?.includes("Requested entity was not found")) {
             setVaultActivated(false);
             setIsKeyActive(false);
             setIsApiKeyModalOpen(true);
-        } else {
+        } else if (error.message?.includes("API_KEY_MISSING") || error.message?.includes("API_INACTIVE")) {
             setIsApiKeyModalOpen(true);
         }
     } finally {
@@ -146,10 +163,16 @@ const App: React.FC = () => {
             if (newScenes[index]) newScenes[index] = { ...newScenes[index], imageUrl, isLoading: false };
             return newScenes;
          });
-     } catch (error) {
+     } catch (error: any) {
+         const isEntityError = error.message?.includes("Requested entity was not found");
+         if (isEntityError) {
+            setVaultActivated(false);
+            setIsKeyActive(false);
+            setIsApiKeyModalOpen(true);
+         }
          setScenes(prev => {
             const newScenes = [...prev];
-            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: 'Retry Failed' };
+            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: isEntityError ? 'Update Project Key' : 'Retry Failed' };
             return newScenes;
          });
      }
