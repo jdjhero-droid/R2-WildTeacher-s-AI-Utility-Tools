@@ -5,7 +5,7 @@ import { ResultGrid } from './components/ResultGrid';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ModelType, GeneratedScene, AspectRatio, TitleData, VeoModel, VeoAspectRatio, VeoResolution, ImageResolution } from './types';
 import { generateStoryStructure, generateSceneImage, generateVeoVideo, generateTitles } from './services/geminiService';
-import { hasStoredApiKey, isVaultActivated, setVaultActivated, removeApiKey } from './utils/keyStorage';
+import { hasStoredApiKey, isVaultActivated, setVaultActivated } from './utils/keyStorage';
 
 const App: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -50,7 +50,7 @@ const App: React.FC = () => {
       try {
         hasProject = await window.aistudio.hasSelectedApiKey();
       } catch (e) {
-        console.warn("AI Studio API check failed", e);
+        console.warn("Native API check failed", e);
       }
     }
     setIsKeyActive(hasManual || hasProject || !!process.env.API_KEY);
@@ -91,24 +91,30 @@ const App: React.FC = () => {
             return newScenes;
           });
         } catch (error: any) {
-          console.error(`Scene ${index} failed:`, error);
-          const isEntityError = error.message?.includes("Requested entity was not found");
-          if (isEntityError) {
-             setVaultActivated(false);
-             setIsKeyActive(false);
-             setIsApiKeyModalOpen(true);
+          console.error(`Render error for scene ${index}:`, error);
+          
+          if (error.message?.includes("Requested entity was not found")) {
+            setVaultActivated(false);
+            setIsKeyActive(false);
+            setIsApiKeyModalOpen(true);
           }
+
           setScenes(prev => {
             const newScenes = [...prev];
-            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: isEntityError ? 'Project Key Required' : 'Render Error' };
+            if (newScenes[index]) {
+                newScenes[index] = { 
+                    ...newScenes[index], 
+                    isLoading: false, 
+                    error: error.message?.includes("Requested entity") ? 'Project Key Required' : 'Render Error' 
+                };
+            }
             return newScenes;
           });
         }
       });
     } catch (error: any) {
-      console.error(error);
-      const isEntityError = error.message?.includes("Requested entity was not found");
-      if (isEntityError) {
+      console.error("Storyboard generation failed:", error);
+      if (error.message?.includes("Requested entity was not found")) {
         setVaultActivated(false);
         setIsKeyActive(false);
       }
@@ -131,10 +137,10 @@ const App: React.FC = () => {
         const videoUrl = await generateVeoVideo(veoModel, topic, veoAspectRatio, veoResolution, referenceImage);
         setGeneratedVideoUrl(videoUrl);
     } catch (error: any) {
-        console.error("Video Generation Error:", error);
-        setVeoError(error.message || "Video failed.");
+        console.error("Veo Generation Error:", error);
+        setVeoError(error.message || "Video generation failed.");
         
-        // Handle mandatory reset if project key is missing or invalid for Veo
+        // Handle mandatory reset if project key is missing or invalid
         if (error.message?.includes("Requested entity was not found")) {
             setVaultActivated(false);
             setIsKeyActive(false);
@@ -164,15 +170,20 @@ const App: React.FC = () => {
             return newScenes;
          });
      } catch (error: any) {
-         const isEntityError = error.message?.includes("Requested entity was not found");
-         if (isEntityError) {
+         if (error.message?.includes("Requested entity was not found")) {
             setVaultActivated(false);
             setIsKeyActive(false);
             setIsApiKeyModalOpen(true);
          }
          setScenes(prev => {
             const newScenes = [...prev];
-            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: isEntityError ? 'Update Project Key' : 'Retry Failed' };
+            if (newScenes[index]) {
+                newScenes[index] = { 
+                    ...newScenes[index], 
+                    isLoading: false, 
+                    error: error.message?.includes("Requested entity") ? 'Project Key Error' : 'Retry Failed' 
+                };
+            }
             return newScenes;
          });
      }

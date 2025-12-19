@@ -35,27 +35,27 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onKey
   const handleOpenProjectSelector = async () => {
     if (window.aistudio) {
       try {
-        // Trigger native selection dialog
+        // 1. Trigger the native Google AI Studio project selector dialog
         await window.aistudio.openSelectKey();
         
         /**
-         * RACE CONDITION MITIGATION:
-         * As per guidelines, we MUST assume the key selection was successful 
-         * after triggering openSelectKey() and proceed to the app.
+         * 2. RACE CONDITION MITIGATION:
+         * As per strict guidelines, we MUST assume the key selection was successful 
+         * after triggering openSelectKey() and proceed to the app immediately.
          */
-        setIsProjectKeySelected(true);
         setVaultActivated(true);
+        setIsProjectKeySelected(true);
         onKeyUpdated();
         setStatus('success');
         
-        // Close immediately to let the user work
+        // Close modal immediately to allow seamless flow
         onClose();
       } catch (e) {
         console.error("Project selection failed or was cancelled", e);
         setStatus('error');
       }
     } else {
-      // Fallback for non-native environments
+      // Fallback: Open AI Studio key page if not in the integrated environment
       window.open('https://aistudio.google.com/app/apikey', '_blank');
     }
   };
@@ -93,12 +93,12 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onKey
           </div>
 
           <div className="space-y-6">
-            {/* Primary Action: Project Selector */}
+            {/* Primary Action: Official Project Selector */}
             <div className="space-y-4">
               <div className="bg-indigo-900/20 border border-indigo-500/20 rounded-2xl p-4">
-                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 block">Recommended: AI Studio Native Access</label>
+                <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 block">Recommended: Official Access</label>
                 <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-                  Veo 비디오 및 고화질(2K/4K) 이미지 생성을 위해 사용 중인 계정의 유료 프로젝트 키를 직접 선택하세요.
+                  구글 계정에 연결된 프로젝트를 직접 선택하여 Veo 비디오 및 고화질(2K/4K) 기능을 활성화하세요.
                 </p>
                 <button 
                   onClick={handleOpenProjectSelector}
@@ -121,18 +121,18 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onKey
                   className="w-full py-3 bg-banana-500 hover:bg-banana-400 text-dark-900 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-banana-500/10"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                  Go to API Management
+                  Manage Keys in AI Studio
                 </a>
                 <p className="text-[10px] text-gray-500 text-center leading-relaxed">
-                  결제 설정이 완료된 GCP 프로젝트를 선택해야 모든 기능이 작동합니다.
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-400 hover:underline ml-1 font-bold">결제 문서 확인</a>
+                  유료 결제가 설정된 프로젝트를 선택해야 합니다.
+                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-400 hover:underline ml-1 font-bold">결제 가이드</a>
                 </p>
               </div>
             </div>
 
             <div className="relative flex items-center py-2">
               <div className="flex-grow border-t border-gray-700"></div>
-              <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">OR Manual Input</span>
+              <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">Manual Override</span>
               <div className="flex-grow border-t border-gray-700"></div>
             </div>
 
@@ -150,7 +150,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onKey
                 disabled={!key}
                 className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-20"
               >
-                Apply Custom Key
+                Apply Custom API Key
               </button>
             </div>
           </div>
@@ -160,12 +160,12 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onKey
               onClick={handleClear}
               className="text-[10px] font-bold text-red-500 hover:opacity-70 transition-opacity uppercase tracking-wider"
             >
-              Clear All Credentials
+              Reset Credentials
             </button>
             {status === 'success' && (
               <span className="text-[10px] font-bold text-green-500 animate-pulse flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                Updated
+                Config Saved
               </span>
             )}
           </div>
