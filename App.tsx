@@ -5,7 +5,7 @@ import { ResultGrid } from './components/ResultGrid';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ModelType, GeneratedScene, AspectRatio, TitleData, VeoModel, VeoAspectRatio, VeoResolution, ImageResolution } from './types';
 import { generateStoryStructure, generateSceneImage, generateVeoVideo, generateTitles } from './services/geminiService';
-import { hasStoredApiKey, isVaultActivated, setVaultActivated } from './utils/keyStorage';
+import { hasStoredApiKey, isVaultActivated } from './utils/keyStorage';
 
 const App: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -38,6 +38,7 @@ const App: React.FC = () => {
   }, []);
 
   const checkKeyStatus = async () => {
+    // 활성화 여부를 먼저 확인
     const activated = isVaultActivated();
     if (!activated) {
       setIsKeyActive(false);
@@ -47,11 +48,7 @@ const App: React.FC = () => {
     const hasManual = hasStoredApiKey();
     let hasProject = false;
     if (window.aistudio) {
-      try {
-        hasProject = await window.aistudio.hasSelectedApiKey();
-      } catch (e) {
-        console.warn("Native API check failed", e);
-      }
+      hasProject = await window.aistudio.hasSelectedApiKey();
     }
     setIsKeyActive(hasManual || hasProject || !!process.env.API_KEY);
   };
@@ -90,34 +87,16 @@ const App: React.FC = () => {
             if (newScenes[index]) newScenes[index] = { ...newScenes[index], imageUrl, isLoading: false };
             return newScenes;
           });
-        } catch (error: any) {
-          console.error(`Render error for scene ${index}:`, error);
-          
-          if (error.message?.includes("Requested entity was not found")) {
-            setVaultActivated(false);
-            setIsKeyActive(false);
-            setIsApiKeyModalOpen(true);
-          }
-
+        } catch (error) {
           setScenes(prev => {
             const newScenes = [...prev];
-            if (newScenes[index]) {
-                newScenes[index] = { 
-                    ...newScenes[index], 
-                    isLoading: false, 
-                    error: error.message?.includes("Requested entity") ? 'Project Key Required' : 'Render Error' 
-                };
-            }
+            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: 'Render Error' };
             return newScenes;
           });
         }
       });
     } catch (error: any) {
-      console.error("Storyboard generation failed:", error);
-      if (error.message?.includes("Requested entity was not found")) {
-        setVaultActivated(false);
-        setIsKeyActive(false);
-      }
+      console.error(error);
       setIsApiKeyModalOpen(true);
     } finally {
       setIsGenerating(false);
@@ -137,17 +116,8 @@ const App: React.FC = () => {
         const videoUrl = await generateVeoVideo(veoModel, topic, veoAspectRatio, veoResolution, referenceImage);
         setGeneratedVideoUrl(videoUrl);
     } catch (error: any) {
-        console.error("Veo Generation Error:", error);
-        setVeoError(error.message || "Video generation failed.");
-        
-        // Handle mandatory reset if project key is missing or invalid
-        if (error.message?.includes("Requested entity was not found")) {
-            setVaultActivated(false);
-            setIsKeyActive(false);
-            setIsApiKeyModalOpen(true);
-        } else if (error.message?.includes("API_KEY_MISSING") || error.message?.includes("API_INACTIVE")) {
-            setIsApiKeyModalOpen(true);
-        }
+        setVeoError(error.message || "Video failed.");
+        setIsApiKeyModalOpen(true);
     } finally {
         setIsGeneratingVideo(false);
     }
@@ -169,21 +139,10 @@ const App: React.FC = () => {
             if (newScenes[index]) newScenes[index] = { ...newScenes[index], imageUrl, isLoading: false };
             return newScenes;
          });
-     } catch (error: any) {
-         if (error.message?.includes("Requested entity was not found")) {
-            setVaultActivated(false);
-            setIsKeyActive(false);
-            setIsApiKeyModalOpen(true);
-         }
+     } catch (error) {
          setScenes(prev => {
             const newScenes = [...prev];
-            if (newScenes[index]) {
-                newScenes[index] = { 
-                    ...newScenes[index], 
-                    isLoading: false, 
-                    error: error.message?.includes("Requested entity") ? 'Project Key Error' : 'Retry Failed' 
-                };
-            }
+            if (newScenes[index]) newScenes[index] = { ...newScenes[index], isLoading: false, error: 'Retry Failed' };
             return newScenes;
          });
      }
